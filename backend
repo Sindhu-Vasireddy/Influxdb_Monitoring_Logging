@@ -1,0 +1,54 @@
+#!/usr/bin/python
+import sys
+from subprocess import Popen,PIPE
+from influxdb import InfluxDBClient
+import time
+
+host='localhost'
+user='ats'
+password='atslabb00'
+DBNAME='A3'
+port=8086
+
+
+client = InfluxDBClient(host, port, user, password, DBNAME) 
+x=client.query('show databases')
+y=[i['name'] for i in x.get_points()]
+if DBNAME not in y:  
+ client.create_database(DBNAME)
+
+del sys.argv[0]
+#sys.argv.insert(0,'python')
+# Check the location of the prober(aka snmp_polling_tool.pl) file!
+sys.argv.insert(0,'/tmp/A2/prober')
+#sys.argv.remove(sys.argv[3])
+sys.argv.insert(3,'-1')
+print sys.argv
+series=[]
+
+
+proc=Popen(['stdbuf','-o0']+sys.argv,stdout=PIPE)
+while True:
+  line=proc.stdout.readline()
+  print line
+  if line == '' and proc.poll() is not None:
+     break
+  if line:
+     print "hey, I am working!"
+     l=line.rstrip()
+     rate_list=l.split("|")
+     print "rate_list:{}".format(rate_list)
+     for string in sys.argv[4:]:
+         series=[]
+         i=sys.argv.index(string)
+         print rate_list[i-3]
+         pointValues = {"measurement":"rate","tags":{'oid':string,},"fields":{'value':float(rate_list[i-3]),'timevalue':float(rate_list[0]),}}
+         series.append(pointValues)
+         client.write_points(series)
+     
+	     
+             
+             
+
+
+
